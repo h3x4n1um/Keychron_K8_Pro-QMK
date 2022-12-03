@@ -243,6 +243,11 @@ class XAPShell(cmd.Cmd):
             ret = self.device.int_transaction(XAPRoutes.LIGHTING_RGB_MATRIX_GET_ENABLED_EFFECTS)
             print(f'XAPEffectRgbMatrix(enabled={bin(ret)})')
 
+    def do_direct_set_multi(self, line):
+        self.device.transaction(XAPRoutes().LIGHTING_RGB_MATRIX_SET_MULTIPLE_LED, bytearray([0, 3, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF]))
+
+    def do_direct_set_single(self, line):
+        self.device.transaction(XAPRoutes().LIGHTING_RGB_MATRIX_SET_SINGLE_LED, bytearray([0, 0x00, 0xFF, 0x00]))
 
 @cli.argument('-v', '--verbose', arg_only=True, action='store_true', help='Turns on verbose output.')
 @cli.argument('-d', '--device', help='device to select - uses format <pid>:<vid>.')

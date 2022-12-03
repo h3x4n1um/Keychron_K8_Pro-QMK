@@ -156,4 +156,61 @@ bool xap_respond_save_rgb_matrix_config(xap_token_t token, const void *data, siz
 
     return xap_respond_success(token);
 }
+
+#   if ((defined(ENABLE_RGB_MATRIX_XAP_DIRECT_MODE)))
+RGB xap_direct_lighting_led_colors[RGB_MATRIX_LED_COUNT] = {[0 ... RGB_MATRIX_LED_COUNT - 1] = {255, 255, 255}};
+
+bool xap_respond_direct_mode_set_single_led(xap_token_t token, const void *data, size_t length) {
+    const unsigned char* cdata = (const unsigned char*)data;
+    if (length < 4)
+        return false;
+
+    int led_pos = cdata[0];
+
+    if ((led_pos < 0) || (led_pos >= RGB_MATRIX_LED_COUNT))
+        return false;
+
+    xap_direct_lighting_led_colors[led_pos] = (RGB){ cdata[1], cdata[2], cdata[3]};
+    return xap_respond_success(token);
+}
+
+bool xap_respond_direct_mode_set_multiple_leds(xap_token_t token, const void *data, size_t length) {
+    const unsigned char* cdata = (const unsigned char*)data;
+    // 5 is the minimum to set at least 1 LED
+    if (length < 5)
+        return false;
+
+    int starting_led = cdata[0];
+    int ending_led = cdata[1];
+
+    // Check bounds on the starting point
+    if ((starting_led < 0) || (starting_led > RGB_MATRIX_LED_COUNT))
+        return false;
+
+    // Check bounds on the ending point
+    if ((ending_led < starting_led) || (ending_led > RGB_MATRIX_LED_COUNT))
+        return false;
+
+    // Make sure we have enough data to actually set the LEDs
+    if ((length - 2) < ((ending_led - starting_led) * 3))
+        return false;
+
+    for (int led_pos = 0; led_pos < (ending_led - starting_led); led_pos++) {
+        // The 2 in `data[2 ...]` is an offset so that we don't read an LED position instead of colors
+        xap_direct_lighting_led_colors[starting_led + led_pos] = (RGB){ cdata[2 + (led_pos * 3)    ],
+                                                                        cdata[2 + (led_pos * 3) + 1],
+                                                                        cdata[2 + (led_pos * 3) + 2]};
+
+      // TODO: This is probably faster so I would like to do this later but for now I need something I know will work
+      //memcpy( &xap_direct_lighting_led_colors[((starting_led + led_pos) * 3)], 
+      //        &data[2 + (led_pos * 3)],
+      //        (sizeof(unsigned char) * 3));
+    }
+    //xap_direct_lighting_set_multiple_leds((const unsigned char*)data, length);
+    return xap_respond_success(token);
+}
+
+#   endif
+
+
 #endif
