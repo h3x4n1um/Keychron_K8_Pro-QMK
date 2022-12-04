@@ -323,7 +323,7 @@
                             define: SET_MULTIPLE_LED
                             description: Sets multiple LEDs for direct mode
                             return_execute: direct_mode_set_multiple_leds
-                            enable_if_preprocessor: defined(ENABLE_RGB_MATRIX_XAP_DIRECT_MODE)
+                            enable_if_preprocessor: defined(ENABLE_RGB_MATRIX_XAP_DIRECT)
                         }
                         0x07: {
                             type: command
@@ -331,7 +331,7 @@
                             define: SET_SINGLE_LED
                             description: Sets single LED for direct mode
                             return_execute: direct_mode_set_single_led
-                            enable_if_preprocessor: defined(ENABLE_RGB_MATRIX_XAP_DIRECT_MODE)
+                            enable_if_preprocessor: defined(ENABLE_RGB_MATRIX_XAP_DIRECT)
                         }
                     }
                 }

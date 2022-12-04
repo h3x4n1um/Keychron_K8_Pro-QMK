@@ -608,6 +608,10 @@ static uint8_t rgb_matrix_effect_map[][2] = {
     { 0x2B, RGB_MATRIX_SOLID_MULTISPLASH},
 #endif
 #endif
+
+#ifdef ENABLE_RGB_MATRIX_XAP_DIRECT
+    { 0x2C, RGB_MATRIX_XAP_DIRECT},
+#endif
 };
 
 uint8_t rgb_matrix2xap(uint8_t val) {
@@ -843,6 +847,10 @@ enum { ENABLED_RGB_MATRIX_EFFECTS = 0
 #ifdef ENABLE_RGB_MATRIX_SOLID_MULTISPLASH
     | (1ULL << 0x2B)
 #endif
+#endif
+
+#ifdef ENABLE_RGB_MATRIX_XAP_DIRECT
+    | (1ULL << 0x2C)
 #endif
 };
 #endif //RGB_MATRIX_ENABLE

@@ -247,7 +247,18 @@ class XAPShell(cmd.Cmd):
         self.device.transaction(XAPRoutes().LIGHTING_RGB_MATRIX_SET_MULTIPLE_LED, bytearray([0, 3, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF]))
 
     def do_direct_set_single(self, line):
-        self.device.transaction(XAPRoutes().LIGHTING_RGB_MATRIX_SET_SINGLE_LED, bytearray([0, 0x00, 0xFF, 0x00]))
+        self.device.transaction(XAPRoutes().LIGHTING_RGB_MATRIX_SET_SINGLE_LED,
+                                bytearray([11, 0xFF, 0x00, 0x7F]))
+
+    def do_direct_set_white(self, line):
+        for i in range(47):
+            self.device.transaction(XAPRoutes().LIGHTING_RGB_MATRIX_SET_SINGLE_LED,
+                                    bytearray([i, 255, 255, 255]))
+
+    def do_direct_set_blank(self, line):
+        for i in range(47):
+            self.device.transaction(XAPRoutes().LIGHTING_RGB_MATRIX_SET_SINGLE_LED,
+                                    bytearray([i, 0, 0, 0]))
 
 @cli.argument('-v', '--verbose', arg_only=True, action='store_true', help='Turns on verbose output.')
 @cli.argument('-d', '--device', help='device to select - uses format <pid>:<vid>.')

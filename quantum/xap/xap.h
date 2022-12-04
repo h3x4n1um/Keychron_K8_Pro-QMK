@@ -29,7 +29,7 @@
 #    define XAP_SUBSYSTEM_VERSION_USER 0
 #endif
 
-#if defined(RGB_MATRIX_ENABLE) && defined(ENABLE_RGB_MATRIX_XAP_DIRECT_MODE)
+#if defined(RGB_MATRIX_ENABLE) && defined(ENABLE_RGB_MATRIX_XAP_DIRECT)
   extern RGB xap_direct_lighting_led_colors[RGB_MATRIX_LED_COUNT];
 #endif
 
