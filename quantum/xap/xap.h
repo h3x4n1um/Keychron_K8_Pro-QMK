@@ -30,6 +30,7 @@
 #endif
 
 #if defined(RGB_MATRIX_ENABLE) && defined(ENABLE_RGB_MATRIX_XAP_DIRECT)
+#   include "../color.h"
   extern RGB xap_direct_lighting_led_colors[RGB_MATRIX_LED_COUNT];
 #endif
 
