@@ -33,6 +33,7 @@
     defined(ENABLE_RGB_MATRIX_XAP_DIRECT) && \
     defined(XAP_DIRECT_USE_ARRAY))
 
+    #include <rgb_matrix.h>
     extern RGB xap_direct_lighting_led_colors[RGB_MATRIX_LED_COUNT];
 #endif
 
