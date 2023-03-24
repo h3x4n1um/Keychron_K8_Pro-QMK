@@ -224,6 +224,12 @@ class XAPShell(cmd.Cmd):
         except KeyboardInterrupt:
             print('^C')
         return False
+ 
+    def do_direct_set(self, line):
+        self.device.transaction(bytes(XAPRoutes.LIGHTING_RGB_MATRIX_SET_MULTIPLE_LED), bytearray([0x00, 0x2f, 0xFF, 0xFF, 0xFF]))
+
+    def do_direct_free(self, line):
+        self.device.transaction(bytes(XAPRoutes.LIGHTING_RGB_MATRIX_DIRECT_FREE))
 
     def do_dump(self, line):
         caps = self.device.int_transaction(XAPRoutes.LIGHTING_CAPABILITIES_QUERY)
@@ -251,6 +257,7 @@ class XAPShell(cmd.Cmd):
 
             ret = self.device.int_transaction(XAPRoutes.LIGHTING_RGB_MATRIX_GET_ENABLED_EFFECTS)
             print(f'XAPEffectRgbMatrix(enabled={bin(ret)})')
+
 
 
 @cli.argument('-v', '--verbose', arg_only=True, action='store_true', help='Turns on verbose output.')

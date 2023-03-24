@@ -177,18 +177,72 @@ bool xap_respond_save_rgb_matrix_config(xap_token_t token, const void *data, siz
 
 #ifdef XAP_DIRECT_USE_ARRAY
 RGB xap_direct_lighting_led_colors[RGB_MATRIX_LED_COUNT] = {[0 ... RGB_MATRIX_LED_COUNT - 1] = {0, 0, 0}};
-#define DIRECT_MODE_CHECK() {}
 #define DIRECT_SET_COLOR() {xap_direct_lighting_led_colors[starting_led + led_pos] = rgb;}
 #define DIRECT_INDICATOR() {}
 #else
-#define DIRECT_MODE_CHECK() {if (rgb_matrix_get_mode() != RGB_MATRIX_XAP_DIRECT) {return false;}}
-#define DIRECT_SET_COLOR() {rgb_matrix_set_color(starting_led + led_pos, rgb.r, rgb.g, rgb.b);}
-#define DIRECT_INDICATOR() {rgb_matrix_indicators_advanced_user(starting_led, starting_led + led_count);}
+
+static bool flags_saved = false;
+#define FLAG_COUNT ((RGB_MATRIX_LED_COUNT + (2 - 1)) / 2)
+// Assigning LED_FLAG_NONE doesn't make a lot of sense sense each uint8_t is more than 1 flag
+uint8_t stored_flags[FLAG_COUNT] = {0};
+
+#define DIRECT_SET_COLOR() { \
+    g_led_config.flags[starting_led + led_pos] = LED_FLAG_NONE; \
+    rgb_matrix_set_color(starting_led + led_pos, rgb.r, rgb.g, rgb.b); \
+}
 #endif
 
-bool xap_respond_direct_mode_set_multiple_leds(xap_token_t token, const void *data, size_t length) {
-    DIRECT_MODE_CHECK();
+#define BITMASK_MODIFIER 0
+#define BITMASK_UNDERGLOW 1
+#define BITMASK_KEYLIGHT 2
+#define BITMASK_INDICATOR 3
 
+// TODO: Come up with better name for "start" variable (General variable naming)
+// second_led? scnd? starting_pos? first_half? second_half? section? split?
+
+bool xap_respond_direct_free(xap_token_t token, const void *data, size_t length) {
+    if (flags_saved) {
+        for (int led_ndx = 0; led_ndx < RGB_MATRIX_LED_COUNT; led_ndx++) {
+            int flag_ndx = led_ndx / 2;
+            int start = ((led_ndx % 2 == 0) ? 0 : 4);
+            if ((1 << (start + BITMASK_MODIFIER )) & stored_flags[flag_ndx])
+              g_led_config.flags[led_ndx] += LED_FLAG_MODIFIER;
+            if ((1 << (start + BITMASK_UNDERGLOW)) & stored_flags[flag_ndx])
+              g_led_config.flags[led_ndx] += LED_FLAG_UNDERGLOW;
+            if ((1 << (start + BITMASK_KEYLIGHT)) & stored_flags[flag_ndx])
+              g_led_config.flags[led_ndx] += LED_FLAG_KEYLIGHT;
+            if ((1 << (start + BITMASK_INDICATOR)) & stored_flags[flag_ndx])
+              g_led_config.flags[led_ndx] += LED_FLAG_INDICATOR;
+            if (g_led_config.flags[led_ndx] == (LED_FLAG_MODIFIER + LED_FLAG_UNDERGLOW + LED_FLAG_KEYLIGHT + LED_FLAG_INDICATOR)) {
+              g_led_config.flags[led_ndx] = LED_FLAG_ALL;
+            }
+            if (start == 4) {
+                stored_flags[flag_ndx] = 0;
+            }
+        }
+        flags_saved = false;
+    }
+    return xap_respond_success(token);
+}
+
+bool xap_respond_direct_mode_set_multiple_leds(xap_token_t token, const void *data, size_t length) {
+    //#ifndef XAP_DIRECT_USE_ARRAY
+    if (!flags_saved) {
+        for (int led_ndx = 0; led_ndx < RGB_MATRIX_LED_COUNT; led_ndx++) {
+            int flag_ndx = led_ndx / 2;
+            int start = ((led_ndx % 2 == 0) ? 0 : 4);
+            if (g_led_config.flags[led_ndx] & LED_FLAG_MODIFIER)
+                stored_flags[flag_ndx] |= (1 << (start + BITMASK_MODIFIER));
+            if (g_led_config.flags[led_ndx] & LED_FLAG_UNDERGLOW)
+                stored_flags[flag_ndx] |= (1 << (start + BITMASK_UNDERGLOW));
+            if (g_led_config.flags[led_ndx] & LED_FLAG_KEYLIGHT)
+                stored_flags[flag_ndx] |= (1 << (start + BITMASK_KEYLIGHT));
+            if (g_led_config.flags[led_ndx] & LED_FLAG_INDICATOR)
+                stored_flags[flag_ndx] |= (1 << (start + BITMASK_INDICATOR));
+        }
+        flags_saved = true;
+    }
+    //#endif
     const unsigned char* cdata = (const unsigned char*)data;
     // 5 is the minimum to set at least 1 LED
     if (length < 5)
@@ -214,6 +268,8 @@ bool xap_respond_direct_mode_set_multiple_leds(xap_token_t token, const void *da
 
     int starting_led_pos = 0;
 
+    //memset(&g_led_config.flags[starting_led], LED_FLAG_NONE, sizeof(uint8_t) * led_count );
+
     // The 2 in `cdata[2 ...]` is an offset so that we don't read an LED position instead of colors
     // The `(led_pos * 3)` is added when we have more than 1 color to set.
     // Otherwise, we add `0` so that we read the same spot for the rest of the LEDs
@@ -224,10 +280,17 @@ bool xap_respond_direct_mode_set_multiple_leds(xap_token_t token, const void *da
                         .b = UL(cdata[starting_led_pos + 2])};
         FOLLOW_QMK_BRIGHTNESS();
 
-        DIRECT_SET_COLOR();
+        // TODO: Cleanup
+        rgb_matrix_set_color(starting_led + led_pos, rgb.r, rgb.g, rgb.b);
+        //DIRECT_SET_COLOR();
     }
 
-    DIRECT_INDICATOR();
+    #if defined(XAP_DIRECT_ALLOW_INDICATORS) && !defined(XAP_DIRECT_USE_ARRAY)
+    memset(&g_led_config.flags[starting_led], LED_FLAG_ALL, sizeof(uint8_t) * led_count );
+    rgb_matrix_indicators_advanced_user(starting_led, starting_led + led_count);
+    #endif
+
+    memset(&g_led_config.flags[starting_led], LED_FLAG_NONE, sizeof(uint8_t) * led_count );
 
     return xap_respond_success(token);
 }

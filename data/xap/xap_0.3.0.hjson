@@ -325,6 +325,14 @@
                             return_execute: direct_mode_set_multiple_leds
                             enable_if_preprocessor: defined(ENABLE_RGB_MATRIX_XAP_DIRECT)
                         }
+                        0x07: {
+                            type: command
+                            name: Direct release
+                            define: DIRECT_FREE
+                            description: Disable direct mode
+                            return_execute: direct_free
+                            enable_if_preprocessor: defined(ENABLE_RGB_MATRIX_XAP_DIRECT)
+                        }
                     }
                 }
             }
