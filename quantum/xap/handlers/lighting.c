@@ -162,61 +162,48 @@ bool xap_respond_save_rgb_matrix_config(xap_token_t token, const void *data, siz
     rgb.g = rgb.g * brightness; \
     rgb.b = rgb.b * brightness; \
 }
-#else
-#define FOLLOW_QMK_BRIGHTNESS() {}
-#endif
+#else // XAP_DIRECT_FOLLOW_QMK_BRIGHTNESS
+#define FOLLOW_QMK_BRIGHTNESS()
+#endif // XAP_DIRECT_FOLLOW_QMK_BRIGHTNESS
 
-#if defined( XAP_DIRECT_DISABLE_UPPER_LIMIT) || \
-            (RGB_MATRIX_MAXIMUM_BRIGHTNESS == UINT8_MAX) || \
-            !defined(RGB_MATRIX_MAXIMUM_BRIGHTNESS)
+#if (defined( XAP_DIRECT_DISABLE_UPPER_LIMIT)) || \
+    (!defined(RGB_MATRIX_MAXIMUM_BRIGHTNESS))  || \
+    (RGB_MATRIX_MAXIMUM_BRIGHTNESS == UINT8_MAX)
 // Not really recommended unless you don't have a cap anyways
 #define UL(input) (input)
-#else
+#else // XAP_DIRECT_DISABLE_UPPER_LIMIT
 #define UL(input) (input > RGB_MATRIX_MAXIMUM_BRIGHTNESS ? RGB_MATRIX_MAXIMUM_BRIGHTNESS : input)
-#endif
-
-#ifdef XAP_DIRECT_USE_ARRAY
-RGB xap_direct_lighting_led_colors[RGB_MATRIX_LED_COUNT] = {[0 ... RGB_MATRIX_LED_COUNT - 1] = {0, 0, 0}};
-#define DIRECT_SET_COLOR() {xap_direct_lighting_led_colors[starting_led + led_pos] = rgb;}
-#define DIRECT_INDICATOR() {}
-#else
+#endif // XAP_DIRECT_DISABLE_UPPER LIMIT
 
 static bool flags_saved = false;
 #define FLAG_COUNT ((RGB_MATRIX_LED_COUNT + (2 - 1)) / 2)
-// Assigning LED_FLAG_NONE doesn't make a lot of sense sense each uint8_t is more than 1 flag
+// Assigning LED_FLAG_NONE doesn't make a lot of sense since each uint8_t is more than 1 flag
 uint8_t stored_flags[FLAG_COUNT] = {0};
-
-#define DIRECT_SET_COLOR() { \
-    g_led_config.flags[starting_led + led_pos] = LED_FLAG_NONE; \
-    rgb_matrix_set_color(starting_led + led_pos, rgb.r, rgb.g, rgb.b); \
-}
-#endif
 
 #define BITMASK_MODIFIER 0
 #define BITMASK_UNDERGLOW 1
 #define BITMASK_KEYLIGHT 2
 #define BITMASK_INDICATOR 3
 
-// TODO: Come up with better name for "start" variable (General variable naming)
-// second_led? scnd? starting_pos? first_half? second_half? section? split?
-
 bool xap_respond_direct_free(xap_token_t token, const void *data, size_t length) {
     if (flags_saved) {
         for (int led_ndx = 0; led_ndx < RGB_MATRIX_LED_COUNT; led_ndx++) {
             int flag_ndx = led_ndx / 2;
-            int start = ((led_ndx % 2 == 0) ? 0 : 4);
-            if ((1 << (start + BITMASK_MODIFIER )) & stored_flags[flag_ndx])
+            // Section is the starting bit index for the flags to be stored at
+            // 0..3 is the first LED, and 4..7 is the second LED
+            int section = ((led_ndx % 2 == 0) ? 0 : 4); 
+            if ((1 << (section + BITMASK_MODIFIER )) & stored_flags[flag_ndx])
               g_led_config.flags[led_ndx] += LED_FLAG_MODIFIER;
-            if ((1 << (start + BITMASK_UNDERGLOW)) & stored_flags[flag_ndx])
+            if ((1 << (section + BITMASK_UNDERGLOW)) & stored_flags[flag_ndx])
               g_led_config.flags[led_ndx] += LED_FLAG_UNDERGLOW;
-            if ((1 << (start + BITMASK_KEYLIGHT)) & stored_flags[flag_ndx])
+            if ((1 << (section + BITMASK_KEYLIGHT)) & stored_flags[flag_ndx])
               g_led_config.flags[led_ndx] += LED_FLAG_KEYLIGHT;
-            if ((1 << (start + BITMASK_INDICATOR)) & stored_flags[flag_ndx])
+            if ((1 << (section + BITMASK_INDICATOR)) & stored_flags[flag_ndx])
               g_led_config.flags[led_ndx] += LED_FLAG_INDICATOR;
             if (g_led_config.flags[led_ndx] == (LED_FLAG_MODIFIER + LED_FLAG_UNDERGLOW + LED_FLAG_KEYLIGHT + LED_FLAG_INDICATOR)) {
               g_led_config.flags[led_ndx] = LED_FLAG_ALL;
             }
-            if (start == 4) {
+            if (section == 4) {
                 stored_flags[flag_ndx] = 0;
             }
         }
@@ -225,31 +212,33 @@ bool xap_respond_direct_free(xap_token_t token, const void *data, size_t length)
     return xap_respond_success(token);
 }
 
-bool xap_respond_direct_mode_set_multiple_leds(xap_token_t token, const void *data, size_t length) {
-    //#ifndef XAP_DIRECT_USE_ARRAY
+bool xap_respond_direct_set_leds(xap_token_t token, const void *data, size_t length) {
     if (!flags_saved) {
         for (int led_ndx = 0; led_ndx < RGB_MATRIX_LED_COUNT; led_ndx++) {
             int flag_ndx = led_ndx / 2;
-            int start = ((led_ndx % 2 == 0) ? 0 : 4);
+            // Section is the starting bit index for the flags to be stored at
+            // 0..3 is the first LED, and 4..7 is the second LED
+            int section = ((led_ndx % 2 == 0) ? 0 : 4);
             if (g_led_config.flags[led_ndx] & LED_FLAG_MODIFIER)
-                stored_flags[flag_ndx] |= (1 << (start + BITMASK_MODIFIER));
+                stored_flags[flag_ndx] |= (1 << (section + BITMASK_MODIFIER));
             if (g_led_config.flags[led_ndx] & LED_FLAG_UNDERGLOW)
-                stored_flags[flag_ndx] |= (1 << (start + BITMASK_UNDERGLOW));
+                stored_flags[flag_ndx] |= (1 << (section + BITMASK_UNDERGLOW));
             if (g_led_config.flags[led_ndx] & LED_FLAG_KEYLIGHT)
-                stored_flags[flag_ndx] |= (1 << (start + BITMASK_KEYLIGHT));
+                stored_flags[flag_ndx] |= (1 << (section + BITMASK_KEYLIGHT));
             if (g_led_config.flags[led_ndx] & LED_FLAG_INDICATOR)
-                stored_flags[flag_ndx] |= (1 << (start + BITMASK_INDICATOR));
+                stored_flags[flag_ndx] |= (1 << (section + BITMASK_INDICATOR));
         }
         flags_saved = true;
     }
-    //#endif
-    const unsigned char* cdata = (const unsigned char*)data;
+
+    xap_route_lighting_rgb_matrix_direct_set_leds_arg_t* args = (xap_route_lighting_rgb_matrix_direct_set_leds_arg_t*)data;
+
     // 5 is the minimum to set at least 1 LED
     if (length < 5)
         return false;
 
-    int starting_led = cdata[0];
-    int led_count = cdata[1];
+    const uint8_t starting_led = args->starting_led;
+    const uint8_t led_count = args->led_count;
 
     bool single_color = (length == 5);
 
@@ -266,29 +255,30 @@ bool xap_respond_direct_mode_set_multiple_leds(xap_token_t token, const void *da
     if (((length - 2) < (led_count * 3)) && (!single_color))
         return false;
 
-    int starting_led_pos = 0;
-
-    //memset(&g_led_config.flags[starting_led], LED_FLAG_NONE, sizeof(uint8_t) * led_count );
-
-    // The 2 in `cdata[2 ...]` is an offset so that we don't read an LED position instead of colors
-    // The `(led_pos * 3)` is added when we have more than 1 color to set.
-    // Otherwise, we add `0` so that we read the same spot for the rest of the LEDs
-    for (int led_pos = 0; led_pos < led_count; led_pos++) {
-        starting_led_pos = 2 + (single_color ? 0 : (led_pos * 3));
-        RGB rgb = (RGB){.r = UL(cdata[starting_led_pos + 0]),
-                        .g = UL(cdata[starting_led_pos + 1]),
-                        .b = UL(cdata[starting_led_pos + 2])};
-        FOLLOW_QMK_BRIGHTNESS();
-
-        // TODO: Cleanup
-        rgb_matrix_set_color(starting_led + led_pos, rgb.r, rgb.g, rgb.b);
-        //DIRECT_SET_COLOR();
+    if (single_color) {
+        for (int led_pos = 0; led_pos < led_count; led_pos++) {
+            RGB rgb = (RGB){.r = UL(args->colors[0]),
+                            .g = UL(args->colors[1]),
+                            .b = UL(args->colors[2])};
+            FOLLOW_QMK_BRIGHTNESS();
+            rgb_matrix_set_color(starting_led + led_pos, rgb.r, rgb.g, rgb.b);
+        }
+    } else {
+        int starting_led_pos = 0;
+        for (int led_pos = 0; led_pos < led_count; led_pos++) {
+            RGB rgb = (RGB){.r = UL(args->colors[starting_led_pos + 0]),
+                            .g = UL(args->colors[starting_led_pos + 1]),
+                            .b = UL(args->colors[starting_led_pos + 2])};
+            FOLLOW_QMK_BRIGHTNESS();
+            rgb_matrix_set_color(starting_led + led_pos, rgb.r, rgb.g, rgb.b);
+            starting_led_pos += 3; // Serves the same purpose as `starting_led_pos = led_pos * 3;` at the beginning of the loop
+        }
     }
 
-    #if defined(XAP_DIRECT_ALLOW_INDICATORS) && !defined(XAP_DIRECT_USE_ARRAY)
-    memset(&g_led_config.flags[starting_led], LED_FLAG_ALL, sizeof(uint8_t) * led_count );
-    rgb_matrix_indicators_advanced_user(starting_led, starting_led + led_count);
-    #endif
+    if (args->use_indicators) {
+        memset(&g_led_config.flags[starting_led], LED_FLAG_ALL, sizeof(uint8_t) * led_count );
+        rgb_matrix_indicators_advanced_user(starting_led, starting_led + led_count);
+    }
 
     memset(&g_led_config.flags[starting_led], LED_FLAG_NONE, sizeof(uint8_t) * led_count );
 
