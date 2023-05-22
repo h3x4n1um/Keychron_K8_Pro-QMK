@@ -319,7 +319,7 @@
                         }
                         0x06: {
                             type: command
-                            name: Direct set multiple LEDs
+                            name: Direct set LEDs
                             define: DIRECT_SET_LEDS
                             description: Sets multiple LEDs for direct mode
                             return_execute: direct_set_leds
@@ -351,6 +351,21 @@
                             description: Disable direct mode
                             return_execute: direct_free
                             enable_if_preprocessor: defined(ENABLE_RGB_MATRIX_XAP_DIRECT)
+                            request_struct_length: 3
+                            request_struct_members: [
+                                {
+                                    type: bool
+                                    name: free_all
+                                },
+                                {
+                                    type: u8
+                                    name: starting_led
+                                },
+                                {
+                                    type: u8
+                                    name: led_count
+                                }
+                            ]
                         }
                     }
                 }
